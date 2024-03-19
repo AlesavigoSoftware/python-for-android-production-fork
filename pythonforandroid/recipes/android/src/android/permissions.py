@@ -449,9 +449,6 @@ class Permission:
     WRITE_VOICEMAIL = (
         "com.android.voicemail.permission.WRITE_VOICEMAIL"
         )
-    MANAGE_EXTERNAL_STORAGE = (  # Convenient use of paths to manage files
-        "android.permission.MANAGE_EXTERNAL_STORAGE"
-        )
 
 
 PERMISSION_GRANTED = 0
