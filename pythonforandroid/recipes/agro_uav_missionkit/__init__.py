@@ -1,36 +1,22 @@
+from pythonforandroid.recipe import PythonRecipe, url_opener, url_orig_headers
+from os.path import exists, isdir, join
+
 import sh
+from urllib.request import urlretrieve
+from os import unlink, environ
+from sys import stdout
+import time
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 
-from pythonforandroid.recipe import PythonRecipe
-from pythonforandroid.logger import logger, info, warning, debug, shprint, info_main
-from pythonforandroid.util import current_directory, ensure_dir, BuildInterruptingException, rmdir, move, touch
-
-
-# class ProjectPathManager:
-#     PROJECT_NAME = "agro-uav-app"
-#
-#     _dir_path = None
-#
-#     @classmethod
-#     def get_project_dir_path(cls) -> Path:
-#         if cls._dir_path is None:
-#
-#             cls._dir_path = Path()
-#             for folder in Path(__file__).absolute().parts:
-#
-#                 cls._dir_path = cls._dir_path.joinpath(folder)
-#                 if folder == cls.PROJECT_NAME:
-#                     break
-#
-#         return cls._dir_path
-#
-#     @classmethod
-#     def join_str_paths(cls, *args: Union[Path, str]) -> str:
-#         return str(Path().joinpath(*args))
+from pythonforandroid.logger import info, shprint
+from pythonforandroid.util import current_directory, ensure_dir
 
 
 class AgroUAVMissionKitRecipe(PythonRecipe):
     url = 'git+ssh://git@github.com/AlesavigoSoftware/agro-uav-missionkit.git'
-    # url = ProjectPathManager.join_str_paths(ProjectPathManager.get_project_dir_path(), 'Libs', 'agro-uav-missionkit')
 
     depends = [
         'setuptools',
@@ -38,12 +24,79 @@ class AgroUAVMissionKitRecipe(PythonRecipe):
         'matplotlib',
     ]
 
+    def download_file(self, url, target, cwd=None):
+        """
+        (internal) Download an ``url`` to a ``target``.
+        """
+        if not url:
+            return
+        info('Downloading {} from {}'.format(self.name, url))
+
+        if cwd:
+            target = join(cwd, target)
+
+        parsed_url = urlparse(url)
+        if parsed_url.scheme in ('http', 'https'):
+            def report_hook(index, blksize, size):
+                if size <= 0:
+                    progression = '{0} bytes'.format(index * blksize)
+                else:
+                    progression = '{0:.2f}%'.format(
+                        index * blksize * 100. / float(size))
+                if "CI" not in environ:
+                    stdout.write('- Download {}\r'.format(progression))
+                    stdout.flush()
+
+            if exists(target):
+                unlink(target)
+
+            # Download item with multiple attempts (for bad connections):
+            attempts = 0
+            seconds = 1
+            while True:
+                try:
+                    # jqueryui.com returns a 403 w/ the default user agent
+                    # Mozilla/5.0 doesnt handle redirection for liblzma
+                    url_opener.addheaders = [('User-agent', 'Wget/1.0')]
+                    urlretrieve(url, target, report_hook)
+                except OSError as e:
+                    attempts += 1
+                    if attempts >= 5:
+                        raise
+                    stdout.write('Download failed: {}; retrying in {} second(s)...'.format(e, seconds))
+                    time.sleep(seconds)
+                    seconds *= 2
+                    continue
+                finally:
+                    url_opener.addheaders = url_orig_headers
+                break
+            return target
+        elif parsed_url.scheme in ('git', 'git+file', 'git+ssh', 'git+http', 'git+https'):
+            if not isdir(target):
+                if url.startswith('git+'):
+                    url = url[4:]
+                # if 'version' is specified, do a shallow clone
+                if self.version:
+                    ensure_dir(target)
+                    with current_directory(target):
+                        shprint(sh.git, 'init')
+                        shprint(sh.git, 'remote', 'add', 'origin', url)
+                else:
+                    shprint(sh.git, 'clone', '--branch', '1.4.1', '--single-branch', '--recursive', url, target)
+            with current_directory(target):
+                if self.version:
+                    shprint(sh.git, 'fetch', '--depth', '1', 'origin', self.version)
+                    shprint(sh.git, 'checkout', self.version)
+                branch = sh.git('branch', '--show-current')
+                if branch:
+                    shprint(sh.git, 'pull')
+                    shprint(sh.git, 'pull', '--recurse-submodules')
+                shprint(sh.git, 'submodule', 'update', '--recursive', '--init', '--depth', '1')
+            return target
+
     def build_arch(self, arch):
         """Install the Python module by calling setup.py install with
         the target Python dir."""
-        # print('*' * 30)
-        # self.install_python_package(arch, 'shapely', env=self.get_recipe_env(arch))
-        # print('*' * 30)
         super().build_arch(arch)
 
     def install_python_package(self, arch, name=None, env=None, is_dir=True):
