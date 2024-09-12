@@ -47,12 +47,13 @@ python-for-android is not limited to being used with Buildozer.
 
 [![Unit tests & build apps](https://github.com/kivy/python-for-android/workflows/Unit%20tests%20&%20build%20apps/badge.svg?branch=develop)](https://github.com/kivy/python-for-android/actions?query=workflow%3A%22Unit+tests+%26+build+apps%22)
 [![Coverage Status](https://coveralls.io/repos/github/kivy/python-for-android/badge.svg?branch=develop&kill_cache=1)](https://coveralls.io/github/kivy/python-for-android?branch=develop)
+[![Docker](https://github.com/kivy/python-for-android/actions/workflows/docker.yml/badge.svg)](https://github.com/kivy/python-for-android/actions/workflows/docker.yml)
 
 ## Documentation
 
 More information is available in the 
 [online documentation](https://python-for-android.readthedocs.io) including a
-[quickstart guide](https://python-for-android.readthedocs.io/en/latest/quickstart/).
+[quickstart guide](https://python-for-android.readthedocs.io/en/latest/quickstart.html).
 
 python-for-android is managed by the [Kivy team](https://kivy.org).
 

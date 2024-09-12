@@ -23,8 +23,12 @@ virtualenv: $(VIRTUAL_ENV)
 test:
 	$(TOX) -- tests/ --ignore tests/test_pythonpackage.py
 
+# Also install and configure rust
 rebuild_updated_recipes: virtualenv
 	. $(ACTIVATE) && \
+	curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+	. "$(HOME)/.cargo/env" && \
+	rustup target list && \
 	ANDROID_SDK_HOME=$(ANDROID_SDK_HOME) ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
 	$(PYTHON) ci/rebuild_updated_recipes.py $(REBUILD_UPDATED_RECIPES_EXTRA_ARGS)
 
@@ -51,7 +55,7 @@ testapps-with-scipy/%: virtualenv
 	. $(ACTIVATE) && cd testapps/on_device_unit_tests/ && \
 	export LEGACY_NDK=$(ANDROID_NDK_HOME_LEGACY)  && \
     python setup.py $(ARTIFACT) --$(MODE) --sdk-dir $(ANDROID_SDK_HOME) --ndk-dir $(ANDROID_NDK_HOME) \
-    --requirements python3,scipy,kivy \
+			--requirements python3,scipy,kivy \
     --arch=armeabi-v7a --arch=arm64-v8a
 
 testapps-webview: testapps-webview/debug/apk testapps-webview/release/aab
@@ -112,6 +116,9 @@ docker/pull:
 
 docker/build:
 	docker build --cache-from=$(DOCKER_IMAGE) --tag=$(DOCKER_IMAGE) .
+
+docker/login:
+	@echo $(DOCKERHUB_TOKEN) | docker login --username $(DOCKERHUB_USERNAME) --password-stdin
 
 docker/push:
 	docker push $(DOCKER_IMAGE)
