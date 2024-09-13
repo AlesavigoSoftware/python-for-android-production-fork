@@ -20,7 +20,7 @@ class AgroUAVAPIRecipe(PythonRecipe):
 
     # call_hostpython_via_targetpython = False
     install_in_hostpython = False
-    version = '1.0.6'
+    # version = '1.0.5'
 
 
 recipe = AgroUAVAPIRecipe()

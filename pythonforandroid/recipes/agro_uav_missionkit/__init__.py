@@ -15,7 +15,7 @@ except ImportError:
 class AgroUAVMissionKitRecipe(PythonRecipe):
     url = 'git+ssh://git@github.com/AlesavigoSoftware/agro-uav-missionkit.git'
 
-    version = '1.4.1'
+    # version = '1.4.1'
 
     depends = [
         'setuptools',
