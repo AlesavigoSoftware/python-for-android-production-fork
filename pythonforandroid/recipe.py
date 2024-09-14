@@ -230,7 +230,7 @@ class Recipe(metaclass=RecipeMeta):
                     shprint(sh.git, 'clone', '--recursive', url, target)
             with current_directory(target):
                 if self.version:
-                    shprint(sh.git, 'fetch', '--depth', '1', 'origin', self.version)
+                    shprint(sh.git, 'fetch', '--tags', '--depth', '1')
                     shprint(sh.git, 'checkout', self.version)
                 branch = sh.git('branch', '--show-current')
                 if branch:
