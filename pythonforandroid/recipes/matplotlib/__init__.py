@@ -9,10 +9,9 @@ class MatplotlibRecipe(CppCompiledComponentsPythonRecipe):
 
     version = '3.5.2'
     url = 'https://github.com/matplotlib/matplotlib/archive/v{version}.zip'
-
     depends = ['kiwisolver', 'numpy', 'pillow', 'setuptools', 'freetype']
-
     python_depends = ['cycler', 'fonttools', 'packaging', 'pyparsing', 'python-dateutil']
+    need_stl_shared = True
 
     def generate_libraries_pc_files(self, arch):
         """
