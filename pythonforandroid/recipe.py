@@ -1,7 +1,7 @@
 from os.path import basename, dirname, exists, isdir, isfile, join, realpath, split
 import glob
+
 import hashlib
-import json
 from re import match
 
 import sh
@@ -59,21 +59,6 @@ class Recipe(metaclass=RecipeMeta):
               if you want.
     '''
 
-    _download_headers = None
-    '''Add additional headers used when downloading the package, typically
-    for authorization purposes.
-
-    Specified as an array of tuples:
-    [("header1", "foo"), ("header2", "bar")]
-
-    When specifying as an environment variable (DOWNLOAD_HEADER_my-package-name), use a JSON formatted fragement:
-    [["header1","foo"],["header2", "bar"]]
-
-    For example, when downloading from a private
-    github repository, you can specify the following:
-    [('Authorization', 'token <your personal access token>'), ('Accept', 'application/vnd.github+json')]
-    '''
-
     _version = None
     '''A string giving the version of the software the recipe describes,
     e.g. ``2.0.3`` or ``master``.'''
@@ -128,7 +113,6 @@ class Recipe(metaclass=RecipeMeta):
     keys should be the generated libraries and the values the relative path of
     the library inside his build folder. This dict will be used to perform
     different operations:
-
         - copy the library into the right location, depending on if it's shared
           or static)
         - check if we have to rebuild the library
@@ -186,18 +170,6 @@ class Recipe(metaclass=RecipeMeta):
             return None
         return self.url.format(version=self.version)
 
-    @property
-    def download_headers(self):
-        key = "DOWNLOAD_HEADERS_" + self.name
-        env_headers = environ.get(key)
-        if env_headers:
-            try:
-                return [tuple(h) for h in json.loads(env_headers)]
-            except Exception as ex:
-                raise ValueError(f'Invalid Download headers for {key} - must be JSON formatted as [["header1","foo"],["header2","bar"]]: {ex}')
-
-        return environ.get(key, self._download_headers)
-
     def download_file(self, url, target, cwd=None):
         """
         (internal) Download an ``url`` to a ``target``.
@@ -231,10 +203,8 @@ class Recipe(metaclass=RecipeMeta):
             while True:
                 try:
                     # jqueryui.com returns a 403 w/ the default user agent
-                    # Mozilla/5.0 does not handle redirection for liblzma
+                    # Mozilla/5.0 doesnt handle redirection for liblzma
                     url_opener.addheaders = [('User-agent', 'Wget/1.0')]
-                    if self.download_headers:
-                        url_opener.addheaders += self.download_headers
                     urlretrieve(url, target, report_hook)
                 except OSError as e:
                     attempts += 1
@@ -572,6 +542,7 @@ class Recipe(metaclass=RecipeMeta):
         '''Should perform any necessary test and return True only if it needs
         building again. Per default we implement a library test, in case that
         we detect so.
+
         '''
         if self.built_libraries:
             return not all(
@@ -591,7 +562,7 @@ class Recipe(metaclass=RecipeMeta):
         '''This method is always called after `build_arch`. In case that we
         detect a library recipe, defined by the class attribute
         `built_libraries`, we will copy all defined libraries into the
-        right location.
+         right location.
         '''
         if not self.built_libraries:
             return
@@ -758,7 +729,7 @@ class IncludedFilesBehaviour(object):
 
 class BootstrapNDKRecipe(Recipe):
     '''A recipe class for recipes built in an Android project jni dir with
-    an Android.mk. These are not cached separately, but built in the
+    an Android.mk. These are not cached separatly, but built in the
     bootstrap's own building directory.
 
     To build an NDK project which is not part of the bootstrap, see
@@ -1262,7 +1233,7 @@ class PyProjectRecipe(PythonRecipe):
         )
         build_dir = self.get_build_dir(arch.arch)
         env = self.get_recipe_env(arch, with_flags_in_cc=True)
-        # make build dir separately
+        # make build dir separatly
         sub_build_dir = join(build_dir, "p4a_android_build")
         ensure_dir(sub_build_dir)
         # copy hostpython to built python to ensure correct selection of libs and includes
