@@ -1,72 +1,47 @@
-# from pythonforandroid.recipe import CythonRecipe
-# from os.path import join
-#
-#
-# class ShapelyRecipe(CythonRecipe):
-#     # version = '1.8.5'
-#     # version = '2.0.3'
-#     version = '1.7a1'
-#     url = 'https://github.com/Toblerity/Shapely/archive/{version}.tar.gz'
-#     depends = ['setuptools', 'libgeos', 'numpy']
-#
-#     call_hostpython_via_targetpython = False
-#
-#     # Patch to avoid libgeos check (because it fails), insert environment
-#     # variables for our libgeos build (includes, lib paths...) and force
-#     # the cython's compilation to raise an error in case that it fails
-#     patches = ['setup.patch']
-#
-#     # Don't Force Cython
-#     # setup_extra_args = ['sdist']
-#
-#     def get_recipe_env(self, arch=None, with_flags_in_cc=True):
-#         env = super().get_recipe_env(arch)
-#
-#         libgeos_install = join(self.get_recipe(
-#             'libgeos', self.ctx).get_build_dir(arch.arch), 'install_target')
-#         # All this `GEOS_X` variables should be string types, separated
-#         # by commas in case that we need to pass more than one value
-#         env['GEOS_INCLUDE_DIRS'] = join(libgeos_install, 'include')
-#         env['GEOS_LIBRARY_DIRS'] = join(libgeos_install, 'lib')
-#         env['GEOS_LIBRARIES'] = 'geos_c,geos'
-#
-#         return env
-#
-#
-# recipe = ShapelyRecipe()
-
-
-from pythonforandroid.recipe import CythonRecipe
 from os.path import join
 
+from pythonforandroid.recipe import PyProjectRecipe, Recipe
 
-class ShapelyRecipe(CythonRecipe):
-    version = '1.7a1'
-    url = 'https://github.com/Toblerity/Shapely/archive/{version}.tar.gz'
-    depends = ['setuptools', 'libgeos']
 
-    call_hostpython_via_targetpython = False
+class ShapelyRecipe(PyProjectRecipe):
+    """
+    Рецепт для Shapely 2.1.x.
+    Собирает Shapely из исходников, используя уже установленный GEOS
+    (путь к которому пробрасываем через GEOS_INCLUDE_PATH / GEOS_LIBRARY_PATH).
+    """
 
-    # Patch to avoid libgeos check (because it fails), insert environment
-    # variables for our libgeos build (includes, lib paths...) and force
-    # the cython's compilation to raise an error in case that it fails
-    patches = ['setup.patch']
+    name = "shapely"
+    version = "2.1.2"
+    # Можно использовать либо GitHub, либо sdist с PyPI.
+    # Вариант с GitHub:
+    url = "https://github.com/shapely/shapely/archive/refs/tags/{version}.tar.gz"
+    # либо:
+    # url = "https://files.pythonhosted.org/packages/source/s/shapely/shapely-{version}.tar.gz"
 
-    # Don't Force Cython
-    # setup_extra_args = ['sdist']
+    # Нам нужен установленный geos до сборки shapely
+    depends = ["python3", "geos"]
 
-    def get_recipe_env(self, arch=None, with_flags_in_cc=True):
+    # Имя пакета в site-packages
+    site_packages_name = "shapely"
+
+    def get_recipe_env(self, arch):
+        # базовое окружение от PyProjectRecipe
         env = super().get_recipe_env(arch)
 
-        libgeos_install = join(self.get_recipe(
-            'libgeos', self.ctx).get_build_dir(arch.arch), 'install_target')
-        # All this `GEOS_X` variables should be string types, separated
-        # by commas in case that we need to pass more than one value
-        env['GEOS_INCLUDE_DIRS'] = join(libgeos_install, 'include')
-        env['GEOS_LIBRARY_DIRS'] = join(libgeos_install, 'lib')
-        env['GEOS_LIBRARIES'] = 'geos_c,geos'
+        # Получаем рецепт geos и его env с путями
+        geos_recipe = Recipe.get_recipe("geos", self.ctx)
+        geos_env = geos_recipe.get_geos_env(arch)
 
+        # Официальный гайд Shapely: можно указывать пути к GEOS через
+        # переменные GEOS_INCLUDE_PATH и GEOS_LIBRARY_PATH. :contentReference[oaicite:11]{index=11}
+        env.update(geos_env)
+
+        # Если очень хочется, можно дополнительно подсунуть geos-config,
+        # но в минимальном варианте достаточно этих переменных.
         return env
+
+    # build_arch можно не перегружать: PyProjectRecipe сам вызовет
+    # сборку/установку через pyproject/pep517, используя env с GEOS_*.
 
 
 recipe = ShapelyRecipe()
