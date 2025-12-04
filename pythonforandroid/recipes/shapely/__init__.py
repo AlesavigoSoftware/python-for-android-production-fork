@@ -1,47 +1,64 @@
-from os.path import join
+from __future__ import annotations
 
 from pythonforandroid.recipe import PyProjectRecipe, Recipe
 
 
 class ShapelyRecipe(PyProjectRecipe):
     """
-    Рецепт для Shapely 2.1.x.
-    Собирает Shapely из исходников, используя уже установленный GEOS
-    (путь к которому пробрасываем через GEOS_INCLUDE_PATH / GEOS_LIBRARY_PATH).
+    Рецепт Shapely 2.x для Android.
+
+    - Собирается из sdist (PyProjectRecipe + pyproject.toml)
+    - Линкуется с GEOS, который собирает libgeos/LibGeosRecipe
+    - Среда для сборки настраивается через get_recipe_env:
+        * CFLAGS: добавляем -I<GEOS_INCLUDE_PATH>
+        * LDFLAGS: добавляем -L<GEOS_LIB_DIR> -lgeos_c -lgeos
     """
 
     name = "shapely"
     version = "2.1.2"
-    # Можно использовать либо GitHub, либо sdist с PyPI.
-    # Вариант с GitHub:
     url = "https://github.com/shapely/shapely/archive/refs/tags/{version}.tar.gz"
-    # либо:
-    # url = "https://files.pythonhosted.org/packages/source/s/shapely/shapely-{version}.tar.gz"
 
-    # Нам нужен установленный geos до сборки shapely
-    depends = ["python3", "geos"]
+    depends = ["libgeos"]
 
-    # Имя пакета в site-packages
     site_packages_name = "shapely"
 
-    def get_recipe_env(self, arch):
-        # базовое окружение от PyProjectRecipe
-        env = super().get_recipe_env(arch)
+    # Позволяем p4a самому подтянуть libc++_shared.so
+    need_stl_shared = True
 
-        # Получаем рецепт geos и его env с путями
-        geos_recipe = Recipe.get_recipe("geos", self.ctx)
+    def get_recipe_env(self, arch, **kwargs):
+        env = super().get_recipe_env(arch, **kwargs)
+
+        # Получаем инфу от рецепта geos
+        geos_recipe = Recipe.get_recipe("libgeos", self.ctx)
         geos_env = geos_recipe.get_geos_env(arch)
-
-        # Официальный гайд Shapely: можно указывать пути к GEOS через
-        # переменные GEOS_INCLUDE_PATH и GEOS_LIBRARY_PATH. :contentReference[oaicite:11]{index=11}
         env.update(geos_env)
 
-        # Если очень хочется, можно дополнительно подсунуть geos-config,
-        # но в минимальном варианте достаточно этих переменных.
-        return env
+        geos_inc = geos_env["GEOS_INCLUDE_PATH"]
+        geos_lib_dir = geos_env["GEOS_LIB_DIR"]
 
-    # build_arch можно не перегружать: PyProjectRecipe сам вызовет
-    # сборку/установку через pyproject/pep517, используя env с GEOS_*.
+        # ---- CFLAGS: добавляем include-директорию GEOS ---------------------
+        cflags = env.get("CFLAGS", "")
+        if f"-I{geos_inc}" not in cflags:
+            cflags = (cflags + f" -I{geos_inc}").strip()
+        env["CFLAGS"] = cflags
+
+        # ---- LDFLAGS: добавляем lib-директорию + линковку с geos/geos_c ----
+        ldflags = env.get("LDFLAGS", "")
+        if f"-L{geos_lib_dir}" not in ldflags:
+            ldflags = (ldflags + f" -L{geos_lib_dir}").strip()
+
+        # аккуратно добавляем -lgeos_c и -lgeos
+        for flag in ("-lgeos_c", "-lgeos"):
+            if flag not in ldflags:
+                ldflags += f" {flag}"
+        env["LDFLAGS"] = ldflags.strip()
+
+        # На всякий случай оставляем GEOS_LIBRARY_PATH — Shapely умеет его читать
+        # (по докам это каталог с lib, а не конкретный .so)
+        env["GEOS_LIBRARY_PATH"] = geos_env["GEOS_LIBRARY_PATH"]
+
+        # !!! Специально НЕ добавляем сюда -lc++_shared: этим занимается p4a.
+        return env
 
 
 recipe = ShapelyRecipe()
